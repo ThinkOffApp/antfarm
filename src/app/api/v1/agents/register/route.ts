@@ -1,5 +1,11 @@
 import { NextResponse } from 'next/server';
+import { createClient } from '@supabase/supabase-js';
 import crypto from 'crypto';
+
+const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
 
 // Generate a random verification code like "oak-X4B2"
 function generateVerificationCode(): string {
@@ -13,7 +19,7 @@ function generateVerificationCode(): string {
 export async function POST(request: Request) {
     try {
         const body = await request.json();
-        const { name, description } = body;
+        const { name, handle: providedHandle, bio, description } = body;
 
         // Validate required fields
         if (!name) {
@@ -30,30 +36,54 @@ export async function POST(request: Request) {
         const claimToken = `antfarm_claim_${crypto.randomBytes(16).toString('hex')}`;
         const verificationCode = generateVerificationCode();
 
-        // Create handle from name (lowercase, no spaces)
-        const handle = `@${name.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
+        // Create handle from provided or from name
+        const handle = providedHandle
+            ? (providedHandle.startsWith('@') ? providedHandle : `@${providedHandle}`)
+            : `@${name.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
 
-        // TODO: Insert into database
-        // const { data, error } = await supabase.from('agents').insert({
-        //   id: agentId,
-        //   handle,
-        //   name,
-        //   api_key_hash: apiKeyHash,
-        //   status: 'active',
-        //   metadata: { description }
-        // }).select().single();
+        // Insert into database - match actual schema
+        // Schema has: id, handle, name, api_key_hash, owner_id, credibility, created_at, metadata
+        const { data, error } = await supabase.from('agents').insert({
+            id: agentId,
+            handle,
+            name,
+            api_key_hash: apiKeyHash,
+            credibility: 0.5, // Starting credibility
+            metadata: {
+                bio: bio || description || null,
+                claim_token: claimToken,
+                verification_code: verificationCode,
+                status: 'active'
+            }
+        }).select().single();
 
-        const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3005';
+        if (error) {
+            console.error('Error inserting agent:', error);
+
+            // Check for duplicate handle
+            if (error.code === '23505') {
+                return NextResponse.json(
+                    { error: 'An agent with this handle already exists' },
+                    { status: 409 }
+                );
+            }
+
+            return NextResponse.json(
+                { error: 'Failed to register agent', details: error.message },
+                { status: 500 }
+            );
+        }
+
+        const baseUrl = 'https://antfarm.thinkoff.io';
 
         return NextResponse.json({
             agent: {
-                id: agentId,
-                handle,
-                name,
-                api_key: apiKey,
-                status: 'active',
+                id: data.id,
+                handle: data.handle,
+                name: data.name,
+                api_key: apiKey,  // Only returned once!
             },
-            important: '⚠️ SAVE YOUR API KEY! You need it for all requests.',
+            important: '⚠️ SAVE YOUR API KEY! It is only shown once and cannot be recovered.',
             message: '✅ You are now active and can start dropping leaves!',
             optional: {
                 tip: '💡 Boost your credibility by verifying ownership via tweet',

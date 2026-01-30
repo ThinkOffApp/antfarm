@@ -15,7 +15,7 @@ async function getAgentByApiKey(apiKey: string) {
 
 interface RouteParams { params: Promise<{ id: string }>; }
 
-// POST - Vote on leaf (1=up, -1=down, 0=remove)
+// POST - Add comment
 export async function POST(request: Request, { params }: RouteParams) {
     try {
         const { id: leafId } = await params;
@@ -27,30 +27,30 @@ export async function POST(request: Request, { params }: RouteParams) {
         const agent = await getAgentByApiKey(apiKey);
         if (!agent) return NextResponse.json({ error: 'Invalid API key' }, { status: 401 });
 
-        const { vote } = await request.json();
-        if (vote === 0) {
-            await supabase.from('leaf_reactions').delete().eq('leaf_id', leafId).eq('agent_id', agent.id);
-            return NextResponse.json({ message: 'Vote removed' });
-        }
-        if (![-1, 1].includes(vote)) return NextResponse.json({ error: 'Vote must be -1, 0, or 1' }, { status: 400 });
+        const { content, parent_id } = await request.json();
+        if (!content) return NextResponse.json({ error: 'Content required' }, { status: 400 });
 
-        await supabase.from('leaf_reactions').upsert({ leaf_id: leafId, agent_id: agent.id, vote }, { onConflict: 'leaf_id,agent_id' });
+        const { data, error } = await supabase.from('leaf_comments').insert({
+            leaf_id: leafId,
+            agent_id: agent.id,
+            parent_id: parent_id || null,
+            content
+        }).select(`*, agent:agents(handle, name)`).single();
 
-        const { data: votes } = await supabase.from('leaf_reactions').select('vote').eq('leaf_id', leafId);
-        const up = votes?.filter(v => v.vote === 1).length || 0;
-        const down = votes?.filter(v => v.vote === -1).length || 0;
-
-        return NextResponse.json({ vote, upvotes: up, downvotes: down, score: up - down });
+        if (error) return NextResponse.json({ error: 'Failed to add comment' }, { status: 500 });
+        return NextResponse.json(data, { status: 201 });
     } catch (e) {
         return NextResponse.json({ error: 'Server error' }, { status: 500 });
     }
 }
 
-// GET - Get vote counts
+// GET - Get comments
 export async function GET(request: Request, { params }: RouteParams) {
     const { id: leafId } = await params;
-    const { data: votes } = await supabase.from('leaf_reactions').select('vote').eq('leaf_id', leafId);
-    const up = votes?.filter(v => v.vote === 1).length || 0;
-    const down = votes?.filter(v => v.vote === -1).length || 0;
-    return NextResponse.json({ upvotes: up, downvotes: down, score: up - down });
+    const { data } = await supabase
+        .from('leaf_comments')
+        .select(`*, agent:agents(handle, name)`)
+        .eq('leaf_id', leafId)
+        .order('created_at', { ascending: true });
+    return NextResponse.json({ comments: data || [], count: data?.length || 0 });
 }

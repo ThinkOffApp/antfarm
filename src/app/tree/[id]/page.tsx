@@ -1,86 +1,31 @@
 import Link from 'next/link';
+import { getTree, getTreeStats } from '@/lib/supabase-queries';
+import { createClient } from '@supabase/supabase-js';
 
-// Mock tree data - will be replaced with Supabase fetch
-const TREES: Record<string, {
-    id: string;
-    slug: string;
-    title: string;
-    description: string;
-    status: 'growing' | 'dormant' | 'archived';
-    terrain: { slug: string; name: string };
-    stats: { leaves: number; fruit: number };
-    updated_at: string;
-    leaves: Array<{ id: string; type: string; title: string; created_at: string }>;
-}> = {
-    '1': {
-        id: '1',
-        slug: 'reducing-nest-false-positives',
-        title: 'Reducing Nest False Positives',
-        description: 'Investigating motion sensor false alarms during twilight hours. This tree tracks attempts to reduce the number of false positive alerts from Nest cameras.',
-        status: 'growing',
-        terrain: { slug: 'home-automation', name: 'Home Automation' },
-        stats: { leaves: 23, fruit: 1 },
-        updated_at: new Date(Date.now() - 3600000).toISOString(),
-        leaves: [
-            { id: 'l1', type: 'signal', title: 'Twilight threshold adjustment reduces alerts by 40%', created_at: new Date(Date.now() - 3600000).toISOString() },
-            { id: 'l2', type: 'note', title: 'PIR sensor calibration notes', created_at: new Date(Date.now() - 7200000).toISOString() },
-            { id: 'l3', type: 'failure', title: 'Motion zones v2 increased false positives', created_at: new Date(Date.now() - 86400000).toISOString() },
-        ],
-    },
-    '2': {
-        id: '2',
-        slug: 'two-home-away-mode',
-        title: 'Two-Home Away Mode',
-        description: 'Building reliable away detection for households with multiple homes.',
-        status: 'dormant',
-        terrain: { slug: 'home-automation', name: 'Home Automation' },
-        stats: { leaves: 45, fruit: 3 },
-        updated_at: new Date(Date.now() - 86400000 * 7).toISOString(),
-        leaves: [
-            { id: 'l4', type: 'signal', title: 'Geofence overlap detection working', created_at: new Date(Date.now() - 86400000 * 2).toISOString() },
-        ],
-    },
-    '3': {
-        id: '3',
-        slug: 'grok-vs-claude-latency',
-        title: 'Grok vs Claude Latency Analysis',
-        description: 'Benchmarking response times across different prompt types',
-        status: 'growing',
-        terrain: { slug: 'ai-coding', name: 'AI Coding Assistants' },
-        stats: { leaves: 12, fruit: 1 },
-        updated_at: new Date(Date.now() - 7200000).toISOString(),
-        leaves: [
-            { id: 'l5', type: 'signal', title: 'Grok 3x faster on short prompts', created_at: new Date(Date.now() - 7200000).toISOString() },
-        ],
-    },
-    '4': {
-        id: '4',
-        slug: 'helsinki-parking-apis',
-        title: 'Monitoring Helsinki Parking APIs',
-        description: 'Tracking availability patterns and API reliability',
-        status: 'growing',
-        terrain: { slug: 'urban-systems', name: 'Urban Systems' },
-        stats: { leaves: 8, fruit: 0 },
-        updated_at: new Date(Date.now() - 14400000).toISOString(),
-        leaves: [],
-    },
-};
+const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
 
 const STATUS_STYLES = {
     growing: { icon: '🌱', color: 'text-green-400', label: 'Growing' },
+    active: { icon: '🌱', color: 'text-green-400', label: 'Active' },
     dormant: { icon: '🌳', color: 'text-amber-400', label: 'Dormant' },
     archived: { icon: '📦', color: 'text-gray-500', label: 'Archived' },
 };
 
-const LEAF_STYLES = {
+const LEAF_STYLES: Record<string, { icon: string; color: string }> = {
     signal: { icon: '📡', color: 'text-blue-400' },
     note: { icon: '📝', color: 'text-gray-400' },
     failure: { icon: '❌', color: 'text-red-400' },
+    discovery: { icon: '💡', color: 'text-yellow-400' },
 };
 
 export default async function TreePage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = await params;
-    const tree = TREES[id];
+
+    // Fetch tree from database
+    const tree = await getTree(id);
 
     if (!tree) {
         return (
@@ -93,7 +38,19 @@ export default async function TreePage({ params }: { params: Promise<{ id: strin
         );
     }
 
-    const style = STATUS_STYLES[tree.status];
+    // Fetch stats
+    const stats = await getTreeStats(id);
+
+    // Fetch leaves for this tree
+    const { data: leaves } = await supabase
+        .from('leaves')
+        .select('id, type, title, created_at')
+        .eq('tree_id', id)
+        .order('created_at', { ascending: false })
+        .limit(20);
+
+    const terrainData = Array.isArray(tree.terrain) ? tree.terrain[0] : tree.terrain;
+    const style = STATUS_STYLES[tree.status as keyof typeof STATUS_STYLES] || STATUS_STYLES.active;
 
     return (
         <div className="space-y-8">
@@ -110,27 +67,25 @@ export default async function TreePage({ params }: { params: Promise<{ id: strin
                     <span className="text-3xl">{style.icon}</span>
                     <span className={`text-sm font-mono uppercase ${style.color}`}>{style.label}</span>
                     <span className="text-gray-500">·</span>
-                    <Link href={`/t/${tree.terrain.slug}`} className="text-sm text-emerald-500 hover:underline">
-                        🌍 {tree.terrain.name}
+                    <Link href={`/t/${terrainData?.slug || 'unknown'}`} className="text-sm text-emerald-500 hover:underline">
+                        🌍 {terrainData?.name || 'Unknown Terrain'}
                     </Link>
                 </div>
                 <h1 className="text-3xl font-bold text-white">{tree.title}</h1>
                 <p className="text-gray-400 mt-3">{tree.description}</p>
                 <div className="flex gap-6 mt-4 text-sm text-gray-500">
-                    <span>🍃 {tree.stats.leaves} leaves</span>
-                    <span>🍎 {tree.stats.fruit} fruit</span>
+                    <span>🍃 {stats.leaves} leaves</span>
+                    <span>🍎 {stats.fruit} fruit</span>
                 </div>
             </div>
 
             {/* Leaves */}
             <div>
                 <h2 className="text-xl font-semibold mb-4">Recent Leaves</h2>
-                {tree.leaves.length === 0 ? (
-                    <p className="text-gray-500">No leaves yet on this tree.</p>
-                ) : (
+                {leaves && leaves.length > 0 ? (
                     <div className="space-y-3">
-                        {tree.leaves.map((leaf) => {
-                            const leafStyle = LEAF_STYLES[leaf.type as keyof typeof LEAF_STYLES] || LEAF_STYLES.note;
+                        {leaves.map((leaf: any) => {
+                            const leafStyle = LEAF_STYLES[leaf.type] || LEAF_STYLES.note;
                             return (
                                 <div key={leaf.id} className="bg-gray-800/50 border border-gray-700 rounded-lg p-4">
                                     <div className="flex items-center gap-2 mb-1">
@@ -142,6 +97,8 @@ export default async function TreePage({ params }: { params: Promise<{ id: strin
                             );
                         })}
                     </div>
+                ) : (
+                    <p className="text-gray-500">No leaves yet on this tree.</p>
                 )}
             </div>
         </div>

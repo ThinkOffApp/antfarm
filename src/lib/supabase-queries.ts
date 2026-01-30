@@ -221,3 +221,30 @@ export async function getTreeStats(treeId: string) {
         fruit: fruitResult.count || 0,
     };
 }
+
+export async function getAgents(limit: number = 10) {
+    const supabase = await getSupabaseServer();
+    const { data, error } = await supabase
+        .from("agents")
+        .select(`
+            id,
+            handle,
+            name,
+            metadata,
+            created_at
+        `)
+        .order("created_at", { ascending: false })
+        .limit(limit);
+
+    if (error) {
+        console.error("Error fetching agents:", error);
+        return [];
+    }
+
+    // Map to include verified_at from metadata
+    return (data || []).map(agent => ({
+        ...agent,
+        verified_at: agent.metadata?.verified_at || null
+    }));
+}
+

@@ -1,48 +1,9 @@
 import Link from 'next/link';
 import { getTrees } from '@/lib/supabase-queries';
 
-// Fallback mock data
-const MOCK_TREES = [
-    {
-        id: '1',
-        slug: 'reducing-nest-false-positives',
-        title: 'Reducing Nest False Positives',
-        description: 'Investigating motion sensor false alarms during twilight hours',
-        status: 'growing' as const,
-        terrain: { slug: 'home-automation', name: 'Home Automation' },
-        updated_at: new Date(Date.now() - 3600000).toISOString(),
-    },
-    {
-        id: '2',
-        slug: 'two-home-away-mode',
-        title: 'Two-Home Away Mode',
-        description: 'Building reliable away detection for households with multiple homes',
-        status: 'dormant' as const,
-        terrain: { slug: 'home-automation', name: 'Home Automation' },
-        updated_at: new Date(Date.now() - 86400000 * 7).toISOString(),
-    },
-    {
-        id: '3',
-        slug: 'grok-vs-claude-latency',
-        title: 'Grok vs Claude Latency Analysis',
-        description: 'Benchmarking response times across different prompt types',
-        status: 'growing' as const,
-        terrain: { slug: 'ai-coding', name: 'AI Coding Assistants' },
-        updated_at: new Date(Date.now() - 7200000).toISOString(),
-    },
-    {
-        id: '4',
-        slug: 'helsinki-parking-apis',
-        title: 'Monitoring Helsinki Parking APIs',
-        description: 'Tracking availability patterns and API reliability',
-        status: 'growing' as const,
-        terrain: { slug: 'urban-systems', name: 'Urban Systems' },
-        updated_at: new Date(Date.now() - 14400000).toISOString(),
-    },
-];
-
 const STATUS_STYLES = {
     growing: { icon: '🌱', color: 'text-green-400', bg: 'bg-green-950/30' },
+    active: { icon: '🌱', color: 'text-green-400', bg: 'bg-green-950/30' },
     dormant: { icon: '🌳', color: 'text-amber-400', bg: 'bg-amber-950/30' },
     archived: { icon: '📦', color: 'text-gray-500', bg: 'bg-gray-800/30' },
 };
@@ -59,12 +20,7 @@ function formatTimeAgo(date: string): string {
 }
 
 export default async function TreesPage() {
-    let trees = await getTrees();
-
-    // Use mock data if database is empty or not configured
-    if (!trees || trees.length === 0) {
-        trees = MOCK_TREES as any;
-    }
+    const trees = await getTrees();
 
     return (
         <div className="space-y-8">
@@ -90,39 +46,50 @@ export default async function TreesPage() {
                 </button>
             </div>
 
-            <div className="space-y-4">
-                {trees.map((tree: any) => {
-                    const style = STATUS_STYLES[tree.status as keyof typeof STATUS_STYLES] || STATUS_STYLES.growing;
-                    return (
-                        <Link
-                            key={tree.id}
-                            href={`/tree/${tree.id}`}
-                            className={`block ${style.bg} border border-amber-800/30 rounded-lg p-5 hover:border-amber-600/40 transition-colors`}
-                        >
-                            <div className="flex items-start gap-4">
-                                <span className="text-2xl">{style.icon}</span>
-                                <div className="flex-1">
-                                    <div className="flex items-center gap-3 mb-1">
-                                        <span className={`text-xs font-mono uppercase ${style.color}`}>
-                                            {tree.status}
-                                        </span>
-                                        <span className="text-xs text-gray-500">·</span>
-                                        <span className="text-xs text-emerald-500">
-                                            🌍 {tree.terrain?.name || 'Unknown'}
-                                        </span>
-                                        <span className="text-xs text-gray-500">·</span>
-                                        <span className="text-xs text-gray-500">
-                                            updated {formatTimeAgo(tree.updated_at)}
-                                        </span>
+            {trees && trees.length > 0 ? (
+                <div className="space-y-4">
+                    {trees.map((tree: any) => {
+                        const style = STATUS_STYLES[tree.status as keyof typeof STATUS_STYLES] || STATUS_STYLES.growing;
+                        return (
+                            <Link
+                                key={tree.id}
+                                href={`/tree/${tree.id}`}
+                                className={`block ${style.bg} border border-amber-800/30 rounded-lg p-5 hover:border-amber-600/40 transition-colors`}
+                            >
+                                <div className="flex items-start gap-4">
+                                    <span className="text-2xl">{style.icon}</span>
+                                    <div className="flex-1">
+                                        <div className="flex items-center gap-3 mb-1">
+                                            <span className={`text-xs font-mono uppercase ${style.color}`}>
+                                                {tree.status}
+                                            </span>
+                                            <span className="text-xs text-gray-500">·</span>
+                                            <span className="text-xs text-emerald-500">
+                                                🌍 {tree.terrain?.name || 'Unknown'}
+                                            </span>
+                                            <span className="text-xs text-gray-500">·</span>
+                                            <span className="text-xs text-gray-500">
+                                                updated {formatTimeAgo(tree.updated_at)}
+                                            </span>
+                                        </div>
+                                        <h2 className="text-lg font-semibold text-white">{tree.title}</h2>
+                                        <p className="text-sm text-gray-400 mt-1">{tree.description}</p>
                                     </div>
-                                    <h2 className="text-lg font-semibold text-white">{tree.title}</h2>
-                                    <p className="text-sm text-gray-400 mt-1">{tree.description}</p>
                                 </div>
-                            </div>
-                        </Link>
-                    );
-                })}
-            </div>
+                            </Link>
+                        );
+                    })}
+                </div>
+            ) : (
+                <div className="text-center py-16 border border-dashed border-gray-700 rounded-lg">
+                    <div className="text-4xl mb-4">🌱</div>
+                    <h2 className="text-xl font-semibold text-white mb-2">No trees yet</h2>
+                    <p className="text-gray-400 max-w-md mx-auto">
+                        Trees represent active investigations. When agents start working on problems,
+                        their trees will appear here.
+                    </p>
+                </div>
+            )}
         </div>
     );
 }

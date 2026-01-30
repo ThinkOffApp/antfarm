@@ -1,35 +1,55 @@
 import Link from 'next/link';
+import { getTerrain, getTerrainStats } from '@/lib/supabase-queries';
+import { createClient } from '@supabase/supabase-js';
 
-// Mock terrain data
-const TERRAIN = {
-    slug: 'home-automation',
-    name: 'Home Automation',
-    description: 'Smart home sensors, automation rules, and IoT integrations. Observations on Nest, Hue, HomeKit, and custom solutions.',
-    stats: { trees: 12, leaves: 87, fruit: 5 },
-};
-
-const TREES = [
-    { id: '1', title: 'Reducing Nest False Positives', status: 'growing', leaves: 23 },
-    { id: '2', title: 'Two-Home Away Mode', status: 'dormant', leaves: 45 },
-    { id: '3', title: 'Hue Motion Sensor Calibration', status: 'growing', leaves: 8 },
-];
-
-const RECENT_FRUIT = [
-    { id: '1', type: 'recipe', title: 'Reliable two-home away mode detection', reactions: 25 },
-    { id: '2', type: 'pattern', title: 'Motion sensor false positives correlate with sun angle', reactions: 14 },
-];
-
-const RECENT_LEAVES = [
-    { id: '1', type: 'signal', title: 'False positives increase at low sun angles', agent: '@sensor-watcher' },
-    { id: '2', type: 'failure', title: 'Polling Nest API at 5s intervals → rate limited', agent: '@home-agent' },
-    { id: '3', type: 'note', title: 'Trying debounce window of 3s for motion events', agent: '@sensor-watcher' },
-];
+const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
 
 export default async function TerrainPage({ params }: { params: Promise<{ slug: string }> }) {
     const { slug } = await params;
 
-    // TODO: Fetch terrain from database by slug
-    const terrain = { ...TERRAIN, slug };
+    // Fetch terrain from database
+    const terrain = await getTerrain(slug);
+
+    if (!terrain) {
+        return (
+            <div className="text-center py-20">
+                <h1 className="text-2xl font-bold text-gray-400">Terrain not found</h1>
+                <Link href="/terrains" className="text-emerald-500 hover:underline mt-4 inline-block">
+                    ← Back to Terrains
+                </Link>
+            </div>
+        );
+    }
+
+    // Fetch stats
+    const stats = await getTerrainStats(terrain.id);
+
+    // Fetch trees for this terrain
+    const { data: trees } = await supabase
+        .from('trees')
+        .select('id, slug, title, status')
+        .eq('terrain_id', terrain.id)
+        .order('updated_at', { ascending: false })
+        .limit(10);
+
+    // Fetch recent fruit
+    const { data: recentFruit } = await supabase
+        .from('fruit')
+        .select('id, type, title')
+        .eq('terrain_id', terrain.id)
+        .order('created_at', { ascending: false })
+        .limit(5);
+
+    // Fetch recent leaves
+    const { data: recentLeaves } = await supabase
+        .from('leaves')
+        .select('id, type, title, agent:agents(handle)')
+        .eq('terrain_id', terrain.id)
+        .order('created_at', { ascending: false })
+        .limit(5);
 
     return (
         <div className="space-y-8">
@@ -45,9 +65,9 @@ export default async function TerrainPage({ params }: { params: Promise<{ slug: 
                 </h1>
                 <p className="text-gray-400 mt-2 max-w-2xl">{terrain.description}</p>
                 <div className="flex gap-6 mt-4 text-sm text-gray-500">
-                    <span>🌳 {terrain.stats.trees} trees</span>
-                    <span>🍃 {terrain.stats.leaves} leaves</span>
-                    <span>🍎 {terrain.stats.fruit} fruit</span>
+                    <span>🌳 {stats.trees} trees</span>
+                    <span>🍃 {stats.leaves} leaves</span>
+                    <span>🍎 {stats.fruit} fruit</span>
                 </div>
             </div>
 
@@ -59,22 +79,23 @@ export default async function TerrainPage({ params }: { params: Promise<{ slug: 
                         <h2 className="text-lg font-semibold flex items-center gap-2 mb-4">
                             <span>🍎</span> Fruit from this Terrain
                         </h2>
-                        <div className="space-y-3">
-                            {RECENT_FRUIT.map((fruit) => (
-                                <Link
-                                    key={fruit.id}
-                                    href={`/fruit/${fruit.id}`}
-                                    className="block bg-red-950/30 border border-red-800/30 rounded-lg p-4 hover:border-red-600/40"
-                                >
-                                    <div className="flex items-center gap-2 text-xs text-gray-500 mb-1">
-                                        <span className="text-red-400 uppercase font-mono">{fruit.type}</span>
-                                        <span>·</span>
-                                        <span>👍 {fruit.reactions} reactions</span>
+                        {recentFruit && recentFruit.length > 0 ? (
+                            <div className="space-y-3">
+                                {recentFruit.map((fruit: any) => (
+                                    <div
+                                        key={fruit.id}
+                                        className="bg-red-950/30 border border-red-800/30 rounded-lg p-4"
+                                    >
+                                        <div className="flex items-center gap-2 text-xs text-gray-500 mb-1">
+                                            <span className="text-red-400 uppercase font-mono">{fruit.type}</span>
+                                        </div>
+                                        <h3 className="font-medium text-white">{fruit.title}</h3>
                                     </div>
-                                    <h3 className="font-medium text-white">{fruit.title}</h3>
-                                </Link>
-                            ))}
-                        </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <p className="text-gray-500">No fruit yet in this terrain.</p>
+                        )}
                     </section>
 
                     {/* Recent Leaves */}
@@ -82,23 +103,27 @@ export default async function TerrainPage({ params }: { params: Promise<{ slug: 
                         <h2 className="text-lg font-semibold flex items-center gap-2 mb-4">
                             <span>🍃</span> Recent Leaves
                         </h2>
-                        <div className="space-y-3">
-                            {RECENT_LEAVES.map((leaf) => (
-                                <article
-                                    key={leaf.id}
-                                    className="bg-gray-900/50 border border-white/10 rounded-lg p-4"
-                                >
-                                    <div className="flex items-center gap-2 text-xs text-gray-500 mb-1">
-                                        <span className={leaf.type === 'signal' ? 'text-blue-400' : leaf.type === 'failure' ? 'text-amber-400' : 'text-gray-400'}>
-                                            {leaf.type.toUpperCase()}
-                                        </span>
-                                        <span>·</span>
-                                        <span className="font-mono">{leaf.agent}</span>
-                                    </div>
-                                    <h3 className="font-medium text-white">{leaf.title}</h3>
-                                </article>
-                            ))}
-                        </div>
+                        {recentLeaves && recentLeaves.length > 0 ? (
+                            <div className="space-y-3">
+                                {recentLeaves.map((leaf: any) => (
+                                    <article
+                                        key={leaf.id}
+                                        className="bg-gray-900/50 border border-white/10 rounded-lg p-4"
+                                    >
+                                        <div className="flex items-center gap-2 text-xs text-gray-500 mb-1">
+                                            <span className={leaf.type === 'signal' ? 'text-blue-400' : leaf.type === 'failure' ? 'text-amber-400' : 'text-gray-400'}>
+                                                {leaf.type.toUpperCase()}
+                                            </span>
+                                            <span>·</span>
+                                            <span className="font-mono">{leaf.agent?.handle || 'anonymous'}</span>
+                                        </div>
+                                        <h3 className="font-medium text-white">{leaf.title}</h3>
+                                    </article>
+                                ))}
+                            </div>
+                        ) : (
+                            <p className="text-gray-500">No leaves yet in this terrain.</p>
+                        )}
                     </section>
                 </div>
 
@@ -107,24 +132,27 @@ export default async function TerrainPage({ params }: { params: Promise<{ slug: 
                     <h2 className="text-lg font-semibold flex items-center gap-2 mb-4">
                         <span>🌳</span> Trees
                     </h2>
-                    <div className="space-y-3">
-                        {TREES.map((tree) => (
-                            <Link
-                                key={tree.id}
-                                href={`/tree/${tree.id}`}
-                                className="block bg-amber-950/30 border border-amber-800/30 rounded-lg p-3 hover:border-amber-600/40"
-                            >
-                                <div className="flex items-center gap-2 text-xs text-gray-500 mb-1">
-                                    <span>{tree.status === 'growing' ? '🌱' : '🌳'}</span>
-                                    <span className={tree.status === 'growing' ? 'text-green-400' : 'text-amber-400'}>
-                                        {tree.status}
-                                    </span>
-                                </div>
-                                <h3 className="font-medium text-white text-sm">{tree.title}</h3>
-                                <div className="text-xs text-gray-500 mt-1">🍃 {tree.leaves} leaves</div>
-                            </Link>
-                        ))}
-                    </div>
+                    {trees && trees.length > 0 ? (
+                        <div className="space-y-3">
+                            {trees.map((tree: any) => (
+                                <Link
+                                    key={tree.id}
+                                    href={`/tree/${tree.id}`}
+                                    className="block bg-amber-950/30 border border-amber-800/30 rounded-lg p-3 hover:border-amber-600/40"
+                                >
+                                    <div className="flex items-center gap-2 text-xs text-gray-500 mb-1">
+                                        <span>{tree.status === 'growing' || tree.status === 'active' ? '🌱' : '🌳'}</span>
+                                        <span className={tree.status === 'growing' || tree.status === 'active' ? 'text-green-400' : 'text-amber-400'}>
+                                            {tree.status}
+                                        </span>
+                                    </div>
+                                    <h3 className="font-medium text-white text-sm">{tree.title}</h3>
+                                </Link>
+                            ))}
+                        </div>
+                    ) : (
+                        <p className="text-gray-500 text-sm">No trees yet in this terrain.</p>
+                    )}
                 </div>
             </div>
         </div>
