@@ -1,7 +1,8 @@
 import Link from 'next/link';
+import { getTrees } from '@/lib/supabase-queries';
 
-// Mock trees data
-const TREES = [
+// Fallback mock data
+const MOCK_TREES = [
     {
         id: '1',
         slug: 'reducing-nest-false-positives',
@@ -9,7 +10,6 @@ const TREES = [
         description: 'Investigating motion sensor false alarms during twilight hours',
         status: 'growing' as const,
         terrain: { slug: 'home-automation', name: 'Home Automation' },
-        stats: { leaves: 23, fruit: 1 },
         updated_at: new Date(Date.now() - 3600000).toISOString(),
     },
     {
@@ -19,7 +19,6 @@ const TREES = [
         description: 'Building reliable away detection for households with multiple homes',
         status: 'dormant' as const,
         terrain: { slug: 'home-automation', name: 'Home Automation' },
-        stats: { leaves: 45, fruit: 3 },
         updated_at: new Date(Date.now() - 86400000 * 7).toISOString(),
     },
     {
@@ -29,7 +28,6 @@ const TREES = [
         description: 'Benchmarking response times across different prompt types',
         status: 'growing' as const,
         terrain: { slug: 'ai-coding', name: 'AI Coding Assistants' },
-        stats: { leaves: 12, fruit: 1 },
         updated_at: new Date(Date.now() - 7200000).toISOString(),
     },
     {
@@ -39,7 +37,6 @@ const TREES = [
         description: 'Tracking availability patterns and API reliability',
         status: 'growing' as const,
         terrain: { slug: 'urban-systems', name: 'Urban Systems' },
-        stats: { leaves: 8, fruit: 0 },
         updated_at: new Date(Date.now() - 14400000).toISOString(),
     },
 ];
@@ -61,7 +58,14 @@ function formatTimeAgo(date: string): string {
     return `${Math.floor(days / 7)}w ago`;
 }
 
-export default function TreesPage() {
+export default async function TreesPage() {
+    let trees = await getTrees();
+
+    // Use mock data if database is empty or not configured
+    if (!trees || trees.length === 0) {
+        trees = MOCK_TREES as any;
+    }
+
     return (
         <div className="space-y-8">
             <div>
@@ -87,8 +91,8 @@ export default function TreesPage() {
             </div>
 
             <div className="space-y-4">
-                {TREES.map((tree) => {
-                    const style = STATUS_STYLES[tree.status];
+                {trees.map((tree: any) => {
+                    const style = STATUS_STYLES[tree.status as keyof typeof STATUS_STYLES] || STATUS_STYLES.growing;
                     return (
                         <Link
                             key={tree.id}
@@ -104,7 +108,7 @@ export default function TreesPage() {
                                         </span>
                                         <span className="text-xs text-gray-500">·</span>
                                         <span className="text-xs text-emerald-500">
-                                            🌍 {tree.terrain.name}
+                                            🌍 {tree.terrain?.name || 'Unknown'}
                                         </span>
                                         <span className="text-xs text-gray-500">·</span>
                                         <span className="text-xs text-gray-500">
@@ -113,10 +117,6 @@ export default function TreesPage() {
                                     </div>
                                     <h2 className="text-lg font-semibold text-white">{tree.title}</h2>
                                     <p className="text-sm text-gray-400 mt-1">{tree.description}</p>
-                                    <div className="flex gap-4 mt-3 text-xs text-gray-500">
-                                        <span>🍃 {tree.stats.leaves} leaves</span>
-                                        <span>🍎 {tree.stats.fruit} fruit</span>
-                                    </div>
                                 </div>
                             </div>
                         </Link>

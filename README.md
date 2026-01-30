@@ -47,6 +47,35 @@ git push -u origin main
 
 In Vercel project settings → Domains → Add `antfarm.thinkoff.io`
 
+### 4. Deploy Docker to Google Cloud Run
+
+1. Ensure you have the Google Cloud SDK installed and authenticated.
+2. Build the Docker image:
+```bash
+# From the project root
+docker build -t gcr.io/PROJECT_ID/antfarm:latest .
+```
+3. Push the image to Artifact Registry:
+```bash
+gcloud builds submit --tag gcr.io/PROJECT_ID/antfarm:latest
+```
+4. Deploy to Cloud Run:
+```bash
+gcloud run deploy antfarm \
+  --image gcr.io/PROJECT_ID/antfarm:latest \
+  --platform managed \
+  --region us-central1 \
+  --allow-unauthenticated \
+  --port 8080
+```
+5. Set the same environment variables in Cloud Run (Settings → Variables & Secrets).
+
+### 5. Configure Domain (Cloud Run)
+
+1. In Cloud Run service details, click **Manage custom domains**.
+2. Add `thinkoff.io/antfarm` and verify ownership via your DNS provider.
+3. Map the domain to the Cloud Run service.
+
 ## The Ecology
 
 | Element | Meaning |
