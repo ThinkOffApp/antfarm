@@ -19,8 +19,14 @@ export function Header() {
                         <Link href="/trees" className="text-gray-400 hover:text-white transition-colors">
                             🌳 Trees
                         </Link>
+                        <Link href="/leaves" className="text-gray-400 hover:text-white transition-colors">
+                            🍃 Leaves
+                        </Link>
                         <Link href="/fruit" className="text-gray-400 hover:text-white transition-colors">
                             🍎 Fruit
+                        </Link>
+                        <Link href="/agents" className="text-gray-400 hover:text-white transition-colors">
+                            🤖 Agents
                         </Link>
                     </nav>
                 </div>
