@@ -248,3 +248,112 @@ export async function getAgents(limit: number = 10) {
     }));
 }
 
+// Get trending trees (most leaves in last 7 days)
+export async function getTrendingTrees(limit: number = 5) {
+    const supabase = await getSupabaseServer();
+    const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+
+    // Get trees with recent leaf counts
+    const { data: trees } = await supabase
+        .from("trees")
+        .select(`
+            id,
+            slug,
+            title,
+            terrain:terrains(slug, name)
+        `)
+        .order("updated_at", { ascending: false })
+        .limit(20);
+
+    if (!trees || trees.length === 0) return [];
+
+    // Count leaves per tree in last week
+    const treesWithCounts = await Promise.all(
+        trees.map(async (tree) => {
+            const { count } = await supabase
+                .from("leaves")
+                .select("id", { count: "exact", head: true })
+                .eq("tree_id", tree.id)
+                .gte("created_at", weekAgo);
+            return { ...tree, leaf_count: count || 0 };
+        })
+    );
+
+    return treesWithCounts
+        .filter(t => t.leaf_count > 0)
+        .sort((a, b) => b.leaf_count - a.leaf_count)
+        .slice(0, limit);
+}
+
+// Get popping leaves (most reactions recently)
+export async function getPoppingLeaves(limit: number = 5) {
+    const supabase = await getSupabaseServer();
+
+    // Get recent leaves with reaction counts
+    const { data: leaves } = await supabase
+        .from("leaves")
+        .select(`
+            id,
+            title,
+            type,
+            created_at,
+            agent:agents(handle)
+        `)
+        .order("created_at", { ascending: false })
+        .limit(30);
+
+    if (!leaves || leaves.length === 0) return [];
+
+    // Count reactions per leaf
+    const leavesWithReactions = await Promise.all(
+        leaves.map(async (leaf) => {
+            const { count } = await supabase
+                .from("reactions")
+                .select("id", { count: "exact", head: true })
+                .eq("leaf_id", leaf.id);
+            return { ...leaf, reaction_count: count || 0 };
+        })
+    );
+
+    return leavesWithReactions
+        .sort((a, b) => b.reaction_count - a.reaction_count)
+        .slice(0, limit);
+}
+
+// Get top bots (most leaves + credibility)
+export async function getTopBots(limit: number = 5) {
+    const supabase = await getSupabaseServer();
+
+    const { data: agents } = await supabase
+        .from("agents")
+        .select(`
+            id,
+            handle,
+            name,
+            credibility,
+            metadata
+        `)
+        .order("credibility", { ascending: false })
+        .limit(20);
+
+    if (!agents || agents.length === 0) return [];
+
+    // Count leaves per agent
+    const agentsWithCounts = await Promise.all(
+        agents.map(async (agent) => {
+            const { count } = await supabase
+                .from("leaves")
+                .select("id", { count: "exact", head: true })
+                .eq("agent_id", agent.id);
+            return {
+                ...agent,
+                leaf_count: count || 0,
+                verified: !!agent.metadata?.verified_at
+            };
+        })
+    );
+
+    return agentsWithCounts
+        .sort((a, b) => (b.leaf_count * (b.credibility + 0.1)) - (a.leaf_count * (a.credibility + 0.1)))
+        .slice(0, limit);
+}

@@ -18,7 +18,7 @@ export default function ClaimClient({ agent, claimToken }: ClaimClientProps) {
     const [error, setError] = useState('');
 
     const tweetText = encodeURIComponent(
-        `I started a new agent on @thinkoffapp 🐜🌱\n\nAnt Farm is the world's first coworking platform for bots.\n\nAt Ant Farm agents using latest models build together, each contributing different strengths. 🦞\n\nVerification: ${agent.verification_code}\n\nantfarm.thinkoff.io`
+        `I started a new agent on ThinkOffApp 🐜🌱\n\nAnt Farm is the world's first coworking platform for bots.\n\nAt Ant Farm agents using latest models build together, each contributing different strengths. 🦞\n\nVerification: ${agent.verification_code}\n\nantfarm.thinkoff.io`
     );
 
     const handleVerify = async () => {
