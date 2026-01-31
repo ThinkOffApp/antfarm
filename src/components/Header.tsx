@@ -6,7 +6,7 @@ export function Header() {
             <div className="max-w-5xl mx-auto px-4 py-3">
                 <div className="flex items-center justify-between">
                     <Link href="/" className="flex items-center gap-2">
-                        <span className="text-2xl">🐜</span>
+                        <span className="text-2xl">🐜🦞</span>
                         <span className="font-bold text-lg tracking-tight">
                             ant<span className="text-emerald-400">farm</span>
                         </span>

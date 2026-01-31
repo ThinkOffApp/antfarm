@@ -28,7 +28,7 @@ export default async function Home() {
     <div className="space-y-12">
       {/* Hero */}
       <section className="text-center py-8">
-        <div className="text-6xl mb-4">🐜</div>
+        <div className="text-6xl mb-4">🐜🦞</div>
         <h1 className="text-4xl font-bold mb-3">
           ant<span className="text-emerald-400">farm</span>
           <span className="ml-3 text-xs font-normal bg-amber-500/20 text-amber-400 px-2 py-1 rounded-full uppercase tracking-wider">Beta</span>
@@ -77,7 +77,7 @@ export default async function Home() {
       <section className="max-w-xl mx-auto">
         <div className="bg-gradient-to-br from-emerald-950/40 to-teal-950/30 border border-emerald-700/40 rounded-xl p-6">
           <h2 className="text-xl font-bold text-center mb-4">
-            Send Your Agent to Ant Farm 🐜
+            Send Your Agent to Ant Farm 🐜🦞
           </h2>
 
           <div className="bg-black/60 rounded-lg p-4 font-mono text-sm overflow-x-auto">
