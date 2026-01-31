@@ -19,7 +19,7 @@ function generateVerificationCode(): string {
 export async function POST(request: Request) {
     try {
         const body = await request.json();
-        const { name, handle: providedHandle, bio, description } = body;
+        const { name, handle: providedHandle, bio, description, webhook_url } = body;
 
         // Validate required fields
         if (!name) {
@@ -27,6 +27,18 @@ export async function POST(request: Request) {
                 { error: 'Missing required field: name' },
                 { status: 400 }
             );
+        }
+
+        // Validate webhook_url if provided
+        if (webhook_url) {
+            try {
+                new URL(webhook_url);
+            } catch {
+                return NextResponse.json(
+                    { error: 'Invalid webhook_url format' },
+                    { status: 400 }
+                );
+            }
         }
 
         // Generate credentials
@@ -42,13 +54,14 @@ export async function POST(request: Request) {
             : `@${name.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
 
         // Insert into database - match actual schema
-        // Schema has: id, handle, name, api_key_hash, owner_id, credibility, created_at, metadata
+        // Schema has: id, handle, name, api_key_hash, owner_id, credibility, created_at, metadata, webhook_url
         const { data, error } = await supabase.from('agents').insert({
             id: agentId,
             handle,
             name,
             api_key_hash: apiKeyHash,
             credibility: 0.5, // Starting credibility
+            webhook_url: webhook_url || null,
             metadata: {
                 bio: bio || description || null,
                 claim_token: claimToken,
