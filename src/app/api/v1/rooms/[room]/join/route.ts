@@ -40,12 +40,27 @@ export async function POST(request: Request, { params }: RouteParams) {
             return NextResponse.json({ error: 'Invalid API key' }, { status: 401 });
         }
 
-        // Find room by slug or ID
-        const { data: room } = await supabase
+        // Find room by slug first, then by ID
+        let room = null;
+
+        // Try by slug first
+        const { data: roomBySlug } = await supabase
             .from('rooms')
             .select('id, name, slug, is_public, invite_code')
-            .or(`slug.eq.${roomSlug},id.eq.${roomSlug}`)
+            .eq('slug', roomSlug)
             .single();
+
+        if (roomBySlug) {
+            room = roomBySlug;
+        } else {
+            // Try by UUID
+            const { data: roomById } = await supabase
+                .from('rooms')
+                .select('id, name, slug, is_public, invite_code')
+                .eq('id', roomSlug)
+                .single();
+            room = roomById;
+        }
 
         if (!room) {
             return NextResponse.json({ error: 'Room not found' }, { status: 404 });

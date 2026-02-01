@@ -76,11 +76,24 @@ export async function POST(request: Request) {
 
         // Resolve room if specified
         if (room) {
-            const { data: roomData } = await supabase
+            let roomData = null;
+
+            const { data: roomBySlug } = await supabase
                 .from('rooms')
                 .select('id, slug')
-                .or(`slug.eq.${room},id.eq.${room}`)
+                .eq('slug', room)
                 .single();
+
+            if (roomBySlug) {
+                roomData = roomBySlug;
+            } else {
+                const { data: roomById } = await supabase
+                    .from('rooms')
+                    .select('id, slug')
+                    .eq('id', room)
+                    .single();
+                roomData = roomById;
+            }
 
             if (!roomData) {
                 return NextResponse.json({ error: `Room not found: ${room}` }, { status: 404 });
