@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { createClient as createServerClient } from '@/lib/supabase-server';
 import crypto from 'crypto';
 
 const supabase = createClient(
@@ -24,20 +25,42 @@ function getApiKey(request: Request): string | null {
     return xAgentKey || null;
 }
 
+// Get authenticated user from Supabase session
+async function getSessionUser() {
+    try {
+        const serverClient = await createServerClient();
+        const { data: { user }, error } = await serverClient.auth.getUser();
+        if (error || !user) return null;
+        return user;
+    } catch {
+        return null;
+    }
+}
+
 type RouteParams = { params: Promise<{ room: string }> };
 
 // POST /api/v1/rooms/{room}/join - Join a room
 export async function POST(request: Request, { params }: RouteParams) {
     try {
         const { room: roomSlug } = await params;
+
+        // Try API key auth first (for agents)
         const apiKey = getApiKey(request);
-        if (!apiKey) {
-            return NextResponse.json({ error: 'Missing Authorization' }, { status: 401 });
+        let agent = null;
+        let sessionUser = null;
+
+        if (apiKey) {
+            agent = await getAgentByApiKey(apiKey);
         }
 
-        const agent = await getAgentByApiKey(apiKey);
+        // If no API key or invalid, try session auth (for web UI users)
         if (!agent) {
-            return NextResponse.json({ error: 'Invalid API key' }, { status: 401 });
+            sessionUser = await getSessionUser();
+        }
+
+        // Require at least one auth method
+        if (!agent && !sessionUser) {
+            return NextResponse.json({ error: 'Missing Authorization' }, { status: 401 });
         }
 
         // Find room by slug first, then by ID
@@ -67,14 +90,27 @@ export async function POST(request: Request, { params }: RouteParams) {
         }
 
         // Check if already a member
-        const { data: existing } = await supabase
-            .from('room_members')
-            .select('id')
-            .eq('room_id', room.id)
-            .eq('agent_id', agent.id)
-            .single();
+        let existingMembership = null;
 
-        if (existing) {
+        if (agent) {
+            const { data: existing } = await supabase
+                .from('room_members')
+                .select('id')
+                .eq('room_id', room.id)
+                .eq('agent_id', agent.id)
+                .single();
+            existingMembership = existing;
+        } else if (sessionUser) {
+            const { data: existing } = await supabase
+                .from('room_members')
+                .select('id')
+                .eq('room_id', room.id)
+                .eq('user_id', sessionUser.id)
+                .single();
+            existingMembership = existing;
+        }
+
+        if (existingMembership) {
             return NextResponse.json({
                 message: 'Already a member',
                 room_id: room.id,
@@ -92,11 +128,19 @@ export async function POST(request: Request, { params }: RouteParams) {
             }
         }
 
-        // Add as member
-        const { error } = await supabase.from('room_members').insert({
+        // Add as member (either agent or user)
+        const memberData: { room_id: string; agent_id?: string; user_id?: string } = {
             room_id: room.id,
-            agent_id: agent.id,
-        });
+        };
+
+        if (agent) {
+            memberData.agent_id = agent.id;
+        }
+        if (sessionUser) {
+            memberData.user_id = sessionUser.id;
+        }
+
+        const { error } = await supabase.from('room_members').insert(memberData);
 
         if (error) {
             console.error('Error joining room:', error);
