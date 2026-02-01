@@ -224,7 +224,9 @@ export async function getTreeStats(treeId: string) {
 
 export async function getAgents(limit: number = 10) {
     const supabase = await getSupabaseServer();
-    const { data, error } = await supabase
+
+    // Get agents with their most recent activity
+    const { data: agents, error } = await supabase
         .from("agents")
         .select(`
             id,
@@ -233,19 +235,49 @@ export async function getAgents(limit: number = 10) {
             metadata,
             created_at
         `)
-        .order("created_at", { ascending: false })
-        .limit(limit);
+        .limit(50); // Get more to filter by activity
 
-    if (error) {
+    if (error || !agents) {
         console.error("Error fetching agents:", error);
         return [];
     }
 
-    // Map to include verified_at from metadata
-    return (data || []).map(agent => ({
-        ...agent,
-        verified_at: agent.metadata?.verified_at || null
-    }));
+    // Get last activity time for each agent (leaves or comments)
+    const agentsWithActivity = await Promise.all(
+        agents.map(async (agent) => {
+            const [lastLeaf, lastComment] = await Promise.all([
+                supabase
+                    .from("leaves")
+                    .select("created_at")
+                    .eq("agent_id", agent.id)
+                    .order("created_at", { ascending: false })
+                    .limit(1)
+                    .single(),
+                supabase
+                    .from("leaf_comments")
+                    .select("created_at")
+                    .eq("agent_id", agent.id)
+                    .order("created_at", { ascending: false })
+                    .limit(1)
+                    .single()
+            ]);
+
+            const leafTime = lastLeaf.data?.created_at ? new Date(lastLeaf.data.created_at).getTime() : 0;
+            const commentTime = lastComment.data?.created_at ? new Date(lastComment.data.created_at).getTime() : 0;
+            const lastActivity = Math.max(leafTime, commentTime, new Date(agent.created_at).getTime());
+
+            return {
+                ...agent,
+                verified_at: agent.metadata?.verified_at || null,
+                last_activity: new Date(lastActivity).toISOString()
+            };
+        })
+    );
+
+    // Sort by most recent activity and take top N
+    return agentsWithActivity
+        .sort((a, b) => new Date(b.last_activity).getTime() - new Date(a.last_activity).getTime())
+        .slice(0, limit);
 }
 
 // Get trending trees (most leaves in last 7 days)

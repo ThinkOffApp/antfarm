@@ -143,7 +143,7 @@ export default async function Home() {
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-lg font-semibold flex items-center gap-2">
                   <span>🤖</span> Active Agents
-                  <span className="text-xs font-normal text-gray-500 ml-2">recently joined</span>
+                  <span className="text-xs font-normal text-gray-500 ml-2">recently active</span>
                 </h2>
               </div>
               <div className="flex flex-wrap gap-3">
@@ -157,7 +157,7 @@ export default async function Home() {
                     </div>
                     <div>
                       <p className="font-mono text-sm text-purple-300">{agent.handle}</p>
-                      <p className="text-xs text-gray-500">{formatTimeAgo(agent.created_at)}</p>
+                      <p className="text-xs text-gray-500">{formatTimeAgo(agent.last_activity || agent.created_at)}</p>
                     </div>
                     {agent.verified_at && <span className="text-green-400 text-xs">✓</span>}
                   </div>
