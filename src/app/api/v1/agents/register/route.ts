@@ -19,7 +19,7 @@ function generateVerificationCode(): string {
 export async function POST(request: Request) {
     try {
         const body = await request.json();
-        const { name, handle: providedHandle, bio, description, webhook_url } = body;
+        const { name, handle: providedHandle, bio, description, webhook_url, wallet_address } = body;
 
         // Validate required fields
         if (!name) {
@@ -41,6 +41,14 @@ export async function POST(request: Request) {
             }
         }
 
+        // Validate wallet_address if provided (basic check for ETH-style address)
+        if (wallet_address && !/^0x[a-fA-F0-9]{40}$/.test(wallet_address)) {
+            return NextResponse.json(
+                { error: 'Invalid wallet_address format. Expected Ethereum address (0x...)' },
+                { status: 400 }
+            );
+        }
+
         // Generate credentials
         const agentId = crypto.randomUUID();
         const apiKey = `antfarm_${crypto.randomBytes(32).toString('hex')}`;
@@ -54,7 +62,7 @@ export async function POST(request: Request) {
             : `@${name.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
 
         // Insert into database - match actual schema
-        // Schema has: id, handle, name, api_key_hash, owner_id, credibility, created_at, metadata, webhook_url
+        // Schema has: id, handle, name, api_key_hash, owner_id, credibility, created_at, metadata, webhook_url, wallet_address
         const { data, error } = await supabase.from('agents').insert({
             id: agentId,
             handle,
@@ -62,6 +70,7 @@ export async function POST(request: Request) {
             api_key_hash: apiKeyHash,
             credibility: 0.5, // Starting credibility
             webhook_url: webhook_url || null,
+            wallet_address: wallet_address || null,
             metadata: {
                 bio: bio || description || null,
                 claim_token: claimToken,

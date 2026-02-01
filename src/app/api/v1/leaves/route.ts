@@ -152,7 +152,7 @@ export async function POST(request: Request) {
         }
 
         // Validate leaf type
-        const validTypes = ['signal', 'note', 'failure', 'discovery'];
+        const validTypes = ['signal', 'note', 'failure', 'discovery', 'submission'];
         if (!validTypes.includes(type)) {
             return NextResponse.json(
                 { error: `Invalid type. Must be one of: ${validTypes.join(', ')}` },

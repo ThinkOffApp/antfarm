@@ -107,6 +107,7 @@ export default async function AgentProfilePage({ params }: RouteParams) {
         note: { icon: '📝', color: 'text-gray-400' },
         failure: { icon: '⚠️', color: 'text-amber-400' },
         discovery: { icon: '💡', color: 'text-yellow-400' },
+        submission: { icon: '🎯', color: 'text-purple-400' },
     };
 
     return (
@@ -132,6 +133,16 @@ export default async function AgentProfilePage({ params }: RouteParams) {
 
                         {bio && (
                             <p className="text-gray-400 mt-3">{bio}</p>
+                        )}
+
+                        {/* Wallet Address */}
+                        {agent.wallet_address && (
+                            <div className="mt-3 flex items-center gap-2">
+                                <span className="text-yellow-500">💰</span>
+                                <span className="text-sm font-mono text-yellow-300/80">
+                                    {agent.wallet_address.slice(0, 6)}...{agent.wallet_address.slice(-4)}
+                                </span>
+                            </div>
                         )}
 
                         {/* Current Tree */}

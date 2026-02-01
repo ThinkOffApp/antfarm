@@ -49,13 +49,30 @@ export async function POST(request: Request) {
         }
 
         const body = await request.json();
-        const { terrain, title, description } = body;
+        const { terrain, title, description, bounty } = body;
 
         if (!terrain || !title) {
             return NextResponse.json(
                 { error: 'Missing required fields: terrain, title' },
                 { status: 400 }
             );
+        }
+
+        // Validate bounty if provided
+        if (bounty) {
+            if (bounty.amount && (typeof bounty.amount !== 'number' || bounty.amount <= 0)) {
+                return NextResponse.json(
+                    { error: 'bounty.amount must be a positive number' },
+                    { status: 400 }
+                );
+            }
+            const validTypes = ['solution', 'discovery', 'optimization', 'research'];
+            if (bounty.type && !validTypes.includes(bounty.type)) {
+                return NextResponse.json(
+                    { error: `bounty.type must be one of: ${validTypes.join(', ')}` },
+                    { status: 400 }
+                );
+            }
         }
 
         // Find terrain
@@ -78,7 +95,7 @@ export async function POST(request: Request) {
             .replace(/\s+/g, '-')
             .substring(0, 50);
 
-        // Create the tree
+        // Create the tree with optional bounty fields
         const { data: tree, error } = await supabase
             .from('trees')
             .insert({
@@ -88,6 +105,12 @@ export async function POST(request: Request) {
                 description: description || null,
                 status: 'growing',
                 created_by: agent.id,
+                // Bounty fields
+                bounty_amount: bounty?.amount || null,
+                bounty_currency: bounty?.currency || 'USDC',
+                bounty_deadline: bounty?.deadline || null,
+                bounty_type: bounty?.type || null,
+                bounty_status: bounty?.amount ? 'open' : null,
             })
             .select(`
                 id,
@@ -95,7 +118,12 @@ export async function POST(request: Request) {
                 title,
                 description,
                 status,
-                created_at
+                created_at,
+                bounty_amount,
+                bounty_currency,
+                bounty_deadline,
+                bounty_type,
+                bounty_status
             `)
             .single();
 
