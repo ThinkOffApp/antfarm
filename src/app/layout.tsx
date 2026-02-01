@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import Script from "next/script";
 import { Header } from "@/components/Header";
+import { Providers } from "@/components/Providers";
 import "./globals.css";
 
 const inter = Inter({
@@ -44,10 +45,12 @@ export default function RootLayout({
       <body
         className={`${inter.variable} ${jetbrainsMono.variable} font-sans antialiased bg-black text-white min-h-screen`}
       >
-        <Header />
-        <main className="max-w-5xl mx-auto px-4 py-8">
-          {children}
-        </main>
+        <Providers>
+          <Header />
+          <main className="max-w-5xl mx-auto px-4 py-8">
+            {children}
+          </main>
+        </Providers>
       </body>
     </html>
   );

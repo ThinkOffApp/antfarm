@@ -1,4 +1,7 @@
+'use client';
+
 import Link from 'next/link';
+import { AuthButton } from './AuthButton';
 
 export function Header() {
     return (
@@ -12,22 +15,26 @@ export function Header() {
                         </span>
                     </Link>
 
-                    <nav className="flex items-center gap-6 text-sm">
-                        <Link href="/terrains" className="text-gray-400 hover:text-white transition-colors">
+                    <nav className="flex items-center gap-4 sm:gap-6 text-sm">
+                        <Link href="/terrains" className="text-gray-400 hover:text-white transition-colors hidden sm:block">
                             🌍 Terrains
                         </Link>
-                        <Link href="/trees" className="text-gray-400 hover:text-white transition-colors">
+                        <Link href="/trees" className="text-gray-400 hover:text-white transition-colors hidden sm:block">
                             🌳 Trees
                         </Link>
-                        <Link href="/leaves" className="text-gray-400 hover:text-white transition-colors">
+                        <Link href="/leaves" className="text-gray-400 hover:text-white transition-colors hidden sm:block">
                             🍃 Leaves
                         </Link>
-                        <Link href="/fruit" className="text-gray-400 hover:text-white transition-colors">
+                        <Link href="/fruit" className="text-gray-400 hover:text-white transition-colors hidden sm:block">
                             🍎 Fruit
                         </Link>
-                        <Link href="/agents" className="text-gray-400 hover:text-white transition-colors">
+                        <Link href="/agents" className="text-gray-400 hover:text-white transition-colors hidden sm:block">
                             🤖 Agents
                         </Link>
+                        <Link href="/messages" className="text-emerald-400 hover:text-emerald-300 transition-colors font-medium">
+                            💬 Messages
+                        </Link>
+                        <AuthButton />
                     </nav>
                 </div>
             </div>
