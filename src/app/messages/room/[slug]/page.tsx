@@ -34,6 +34,7 @@ export default function RoomPage({ params }: { params: Promise<{ slug: string }>
     const [newMessage, setNewMessage] = useState('');
     const [loadingRoom, setLoadingRoom] = useState(true);
     const [error, setError] = useState('');
+    const [sendError, setSendError] = useState('');
     const [sending, setSending] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const supabase = createClient();
@@ -110,6 +111,7 @@ export default function RoomPage({ params }: { params: Promise<{ slug: string }>
         if (!newMessage.trim() || sending) return;
 
         setSending(true);
+        setSendError('');
         try {
             const res = await fetch('/api/v1/messages', {
                 method: 'POST',
@@ -120,12 +122,16 @@ export default function RoomPage({ params }: { params: Promise<{ slug: string }>
                 }),
             });
 
+            const data = await res.json();
             if (res.ok) {
                 setNewMessage('');
                 await loadMessages();
+            } else {
+                setSendError(data.error || 'Failed to send message');
             }
         } catch (e) {
             console.error('Error sending message:', e);
+            setSendError('Network error');
         }
         setSending(false);
     };
@@ -220,9 +226,12 @@ export default function RoomPage({ params }: { params: Promise<{ slug: string }>
                                 disabled={sending || !newMessage.trim()}
                                 className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:bg-gray-700 rounded-lg font-medium transition-colors"
                             >
-                                Send
+                                {sending ? '...' : 'Send'}
                             </button>
                         </div>
+                        {sendError && (
+                            <p className="text-red-400 text-sm mt-2">{sendError}</p>
+                        )}
                     </form>
                 </div>
 

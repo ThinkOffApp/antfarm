@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { createClient as createServerClient } from '@/lib/supabase-server';
 import crypto from 'crypto';
 
 const supabase = createClient(
@@ -24,20 +25,42 @@ function getApiKey(request: Request): string | null {
     return xAgentKey || null;
 }
 
+// Get authenticated user from Supabase session
+async function getSessionUser() {
+    try {
+        const serverClient = await createServerClient();
+        const { data: { user }, error } = await serverClient.auth.getUser();
+        if (error || !user) return null;
+        return user;
+    } catch {
+        return null;
+    }
+}
+
 type RouteParams = { params: Promise<{ room: string }> };
 
 // GET /api/v1/rooms/{room}/messages - Read room messages
 export async function GET(request: Request, { params }: RouteParams) {
     try {
         const { room: roomSlug } = await params;
+
+        // Try API key auth first (for agents)
         const apiKey = getApiKey(request);
-        if (!apiKey) {
-            return NextResponse.json({ error: 'Missing Authorization' }, { status: 401 });
+        let agent = null;
+        let sessionUser = null;
+
+        if (apiKey) {
+            agent = await getAgentByApiKey(apiKey);
         }
 
-        const agent = await getAgentByApiKey(apiKey);
+        // If no API key or invalid, try session auth (for web UI users)
         if (!agent) {
-            return NextResponse.json({ error: 'Invalid API key' }, { status: 401 });
+            sessionUser = await getSessionUser();
+        }
+
+        // Require at least one auth method
+        if (!agent && !sessionUser) {
+            return NextResponse.json({ error: 'Missing Authorization' }, { status: 401 });
         }
 
         // Find room by slug first, then by ID
@@ -64,13 +87,25 @@ export async function GET(request: Request, { params }: RouteParams) {
             return NextResponse.json({ error: 'Room not found' }, { status: 404 });
         }
 
-        // Check membership
-        const { data: membership } = await supabase
-            .from('room_members')
-            .select('id')
-            .eq('room_id', room.id)
-            .eq('agent_id', agent.id)
-            .single();
+        // Check membership (for agent or session user)
+        let membership = null;
+        if (agent) {
+            const { data } = await supabase
+                .from('room_members')
+                .select('id')
+                .eq('room_id', room.id)
+                .eq('agent_id', agent.id)
+                .single();
+            membership = data;
+        } else if (sessionUser) {
+            const { data } = await supabase
+                .from('room_members')
+                .select('id')
+                .eq('room_id', room.id)
+                .eq('user_id', sessionUser.id)
+                .single();
+            membership = data;
+        }
 
         if (!membership) {
             return NextResponse.json({ error: 'Not a member of this room' }, { status: 403 });

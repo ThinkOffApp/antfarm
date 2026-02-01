@@ -20,12 +20,24 @@ type DM = {
     last_at?: string;
 };
 
+type PublicRoom = {
+    id: string;
+    name: string;
+    slug: string;
+    is_public: boolean;
+    created_at: string;
+    member_count: number;
+};
+
 export default function MessagesPage() {
     const { user, loading } = useAuth();
     const [activeTab, setActiveTab] = useState<'rooms' | 'dms' | 'join' | 'create'>('rooms');
     const [rooms, setRooms] = useState<Room[]>([]);
+    const [publicRooms, setPublicRooms] = useState<PublicRoom[]>([]);
     const [dms, setDms] = useState<DM[]>([]);
     const [loadingData, setLoadingData] = useState(false);
+    const [loadingPublicRooms, setLoadingPublicRooms] = useState(false);
+    const [joiningRoom, setJoiningRoom] = useState<string | null>(null);
 
     // Join room form
     const [joinSlug, setJoinSlug] = useState('');
@@ -49,6 +61,13 @@ export default function MessagesPage() {
         }
     }, [user]);
 
+    // Load public rooms when join tab is active
+    useEffect(() => {
+        if (activeTab === 'join') {
+            loadPublicRooms();
+        }
+    }, [activeTab]);
+
     const loadRooms = async () => {
         setLoadingData(true);
         try {
@@ -70,6 +89,44 @@ export default function MessagesPage() {
             console.error('Error loading rooms:', e);
         }
         setLoadingData(false);
+    };
+
+    const loadPublicRooms = async () => {
+        setLoadingPublicRooms(true);
+        try {
+            const res = await fetch('/api/v1/rooms/public');
+            if (res.ok) {
+                const data = await res.json();
+                setPublicRooms(data.rooms || []);
+            }
+        } catch (e) {
+            console.error('Error loading public rooms:', e);
+        }
+        setLoadingPublicRooms(false);
+    };
+
+    const handleQuickJoin = async (slug: string) => {
+        setJoiningRoom(slug);
+        setJoinError('');
+        try {
+            const res = await fetch(`/api/v1/rooms/${slug}/join`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({}),
+            });
+            const data = await res.json();
+            if (!res.ok) {
+                setJoinError(data.error || 'Failed to join room');
+                setJoiningRoom(null);
+                return;
+            }
+            // Success - refresh rooms and switch tab
+            await loadRooms();
+            setActiveTab('rooms');
+        } catch (e) {
+            setJoinError('Network error');
+        }
+        setJoiningRoom(null);
     };
 
     const handleJoinRoom = async (e: React.FormEvent) => {
@@ -259,38 +316,92 @@ export default function MessagesPage() {
                 {activeTab === 'join' && (
                     <div>
                         <h2 className="font-semibold mb-4">Join a Room</h2>
-                        <form onSubmit={handleJoinRoom} className="space-y-4 max-w-md">
-                            <div>
-                                <label className="block text-sm text-gray-400 mb-1">Room Slug</label>
-                                <input
-                                    type="text"
-                                    value={joinSlug}
-                                    onChange={(e) => setJoinSlug(e.target.value)}
-                                    placeholder="e.g. ant-farm-management"
-                                    className="w-full px-4 py-2 bg-black border border-white/20 rounded-lg text-sm focus:border-emerald-500 focus:outline-none"
-                                    required
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-sm text-gray-400 mb-1">
-                                    Invite Code <span className="text-gray-600">(for private rooms)</span>
-                                </label>
-                                <input
-                                    type="text"
-                                    value={joinPassword}
-                                    onChange={(e) => setJoinPassword(e.target.value)}
-                                    placeholder="Leave empty for public rooms"
-                                    className="w-full px-4 py-2 bg-black border border-white/20 rounded-lg text-sm focus:border-emerald-500 focus:outline-none"
-                                />
-                            </div>
-                            {joinError && <p className="text-red-400 text-sm">{joinError}</p>}
-                            <button
-                                type="submit"
-                                className="px-6 py-2 bg-emerald-600 hover:bg-emerald-500 rounded-lg font-medium"
-                            >
-                                Join Room
-                            </button>
-                        </form>
+
+                        {/* Public Rooms List */}
+                        <div className="mb-8">
+                            <h3 className="text-sm text-gray-400 mb-3">🌍 Popular Public Rooms</h3>
+                            {loadingPublicRooms ? (
+                                <div className="flex items-center gap-2 text-gray-500 py-4">
+                                    <div className="animate-spin w-4 h-4 border-2 border-emerald-500 border-t-transparent rounded-full" />
+                                    <span>Loading rooms...</span>
+                                </div>
+                            ) : publicRooms.length === 0 ? (
+                                <p className="text-gray-500 text-sm py-4">No public rooms yet. Be the first to create one!</p>
+                            ) : (
+                                <div className="space-y-2">
+                                    {publicRooms.map(room => {
+                                        const isAlreadyMember = rooms.some(r => r.id === room.id);
+                                        const isJoining = joiningRoom === room.slug;
+                                        return (
+                                            <div
+                                                key={room.id}
+                                                className="flex items-center justify-between p-3 bg-gray-800/50 hover:bg-gray-800 rounded-lg transition-colors"
+                                            >
+                                                <div className="flex-1 min-w-0">
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="font-medium truncate">{room.name}</span>
+                                                        <span className="text-xs text-gray-500">/{room.slug}</span>
+                                                    </div>
+                                                    <div className="text-xs text-gray-500 mt-0.5">
+                                                        👥 {room.member_count} member{room.member_count !== 1 ? 's' : ''}
+                                                    </div>
+                                                </div>
+                                                {isAlreadyMember ? (
+                                                    <span className="text-xs bg-emerald-500/20 text-emerald-400 px-3 py-1 rounded-lg">
+                                                        ✓ Joined
+                                                    </span>
+                                                ) : (
+                                                    <button
+                                                        onClick={() => handleQuickJoin(room.slug)}
+                                                        disabled={isJoining}
+                                                        className="px-3 py-1 bg-emerald-600 hover:bg-emerald-500 disabled:bg-gray-600 rounded-lg text-sm font-medium transition-colors"
+                                                    >
+                                                        {isJoining ? 'Joining...' : 'Join'}
+                                                    </button>
+                                                )}
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Manual Join Form */}
+                        <div className="border-t border-white/10 pt-6">
+                            <h3 className="text-sm text-gray-400 mb-3">🔑 Join by Invite Code</h3>
+                            <form onSubmit={handleJoinRoom} className="space-y-4 max-w-md">
+                                <div>
+                                    <label className="block text-sm text-gray-400 mb-1">Room Slug</label>
+                                    <input
+                                        type="text"
+                                        value={joinSlug}
+                                        onChange={(e) => setJoinSlug(e.target.value)}
+                                        placeholder="e.g. ant-farm-management"
+                                        className="w-full px-4 py-2 bg-black border border-white/20 rounded-lg text-sm focus:border-emerald-500 focus:outline-none"
+                                        required
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm text-gray-400 mb-1">
+                                        Invite Code <span className="text-gray-600">(for private rooms)</span>
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={joinPassword}
+                                        onChange={(e) => setJoinPassword(e.target.value)}
+                                        placeholder="Leave empty for public rooms"
+                                        className="w-full px-4 py-2 bg-black border border-white/20 rounded-lg text-sm focus:border-emerald-500 focus:outline-none"
+                                    />
+                                </div>
+                                {joinError && <p className="text-red-400 text-sm">{joinError}</p>}
+                                <button
+                                    type="submit"
+                                    className="px-6 py-2 bg-emerald-600 hover:bg-emerald-500 rounded-lg font-medium"
+                                >
+                                    Join Room
+                                </button>
+                            </form>
+                        </div>
                     </div>
                 )}
 

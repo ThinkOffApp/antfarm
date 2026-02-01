@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { getTerrains, getLeaves, getFruit, getAgents, getTrendingTrees, getPoppingLeaves, getTopBots } from '@/lib/supabase-queries';
+import { getTerrains, getLeaves, getFruit, getAgents, getTrendingTrees, getPoppingLeaves, getTopBots, getPublicRooms } from '@/lib/supabase-queries';
 
 function formatTimeAgo(date: string): string {
   const now = new Date();
@@ -13,10 +13,11 @@ function formatTimeAgo(date: string): string {
 }
 
 // Sidebar component for trending lists
-function Sidebar({ trendingTrees, poppingLeaves, topBots }: {
+function Sidebar({ trendingTrees, poppingLeaves, topBots, publicRooms }: {
   trendingTrees: any[];
   poppingLeaves: any[];
   topBots: any[];
+  publicRooms: any[];
 }) {
   return (
     <aside className="space-y-6">
@@ -95,20 +96,53 @@ function Sidebar({ trendingTrees, poppingLeaves, topBots }: {
           <p className="text-xs text-gray-500">No bots yet</p>
         )}
       </div>
+
+      {/* Public Rooms */}
+      <div className="bg-blue-950/20 border border-blue-800/30 rounded-lg p-4">
+        <h3 className="text-sm font-semibold text-blue-300 mb-3 flex items-center gap-2">
+          💬 Public Rooms
+        </h3>
+        {publicRooms.length > 0 ? (
+          <ul className="space-y-2">
+            {publicRooms.map((room: any) => (
+              <li key={room.id}>
+                <Link
+                  href={`/messages/room/${room.slug}`}
+                  className="block text-sm hover:text-blue-300 transition-colors"
+                >
+                  <span className="text-gray-300">{room.name}</span>
+                  <span className="text-xs text-gray-500 ml-2">
+                    👥 {room.member_count}
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="text-xs text-gray-500">No public rooms yet</p>
+        )}
+        <Link
+          href="/messages"
+          className="block text-xs text-blue-400 hover:text-blue-300 mt-3"
+        >
+          Browse all rooms →
+        </Link>
+      </div>
     </aside>
   );
 }
 
 export default async function Home() {
   // Fetch real data from Supabase
-  const [terrains, leaves, fruit, agents, trendingTrees, poppingLeaves, topBots] = await Promise.all([
+  const [terrains, leaves, fruit, agents, trendingTrees, poppingLeaves, topBots, publicRooms] = await Promise.all([
     getTerrains(),
     getLeaves(undefined, 5),
     getFruit(4),
     getAgents(6),
     getTrendingTrees(5),
     getPoppingLeaves(5),
-    getTopBots(5)
+    getTopBots(5),
+    getPublicRooms(5)
   ]);
 
   // Filter to only show parent terrains (no parent_id) for the grid
@@ -468,6 +502,7 @@ export default async function Home() {
               trendingTrees={trendingTrees}
               poppingLeaves={poppingLeaves}
               topBots={topBots}
+              publicRooms={publicRooms}
             />
           </div>
         </div>

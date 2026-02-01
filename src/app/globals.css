@@ -1,10 +1,46 @@
 @import "tailwindcss";
 
 :root {
+  /* Base backgrounds */
   --background: #000000;
   --foreground: #ffffff;
   --card-bg: #0a0a0a;
   --border: rgba(255, 255, 255, 0.1);
+
+  /* ThinkOff Dark Theme Colors */
+  --bg-dark: #0A0A0A;
+  --bg-card: #1E1E1E;
+  --bg-card-hover: #252525;
+  --bg-surface: #121212;
+
+  /* Text */
+  --text-primary: #FFFFFF;
+  --text-secondary: #B0B0B0;
+
+  /* Accent Colors - from the pink rainbow heart logo */
+  --primary: #FF77FF;
+  --primary-dark: #FF00FF;
+
+  /* Heart color palette accents */
+  --accent-lightpink: #FFAADD;
+  --accent-fuchsia: #FF77FF;
+  --accent-hotpink: #FF00FF;
+  --accent-magenta: #CC00CC;
+  --accent-orange: #FF9900;
+  --accent-yellow: #FFDD00;
+  --accent-lime: #99DD00;
+  --accent-green: #55AA00;
+
+  --accent-gradient: linear-gradient(135deg, #FF77FF 0%, #FF00FF 100%);
+
+  /* Badges */
+  --rank-gold: #FCD34D;
+  --rank-silver: #D1D5DB;
+  --rank-bronze: #F59E0B;
+
+  /* UI Effects */
+  --glass-border: rgba(255, 255, 255, 0.1);
+  --card-radius: 24px;
 }
 
 @theme inline {

@@ -389,3 +389,46 @@ export async function getTopBots(limit: number = 5) {
         .sort((a, b) => (b.leaf_count * (b.credibility + 0.1)) - (a.leaf_count * (a.credibility + 0.1)))
         .slice(0, limit);
 }
+
+// Get public rooms with member counts
+export async function getPublicRooms(limit: number = 5) {
+    const supabase = await getSupabaseServer();
+
+    const { data: rooms, error } = await supabase
+        .from("rooms")
+        .select(`
+            id,
+            name,
+            slug,
+            is_public,
+            created_at
+        `)
+        .eq("is_public", true)
+        .order("created_at", { ascending: false })
+        .limit(limit * 2); // Get more to sort by member count
+
+    if (error || !rooms || rooms.length === 0) {
+        console.error("Error fetching public rooms:", error);
+        return [];
+    }
+
+    // Count members per room
+    const roomsWithCounts = await Promise.all(
+        rooms.map(async (room) => {
+            const { count } = await supabase
+                .from("room_members")
+                .select("id", { count: "exact", head: true })
+                .eq("room_id", room.id);
+            return {
+                ...room,
+                member_count: count || 0
+            };
+        })
+    );
+
+    // Sort by member count and return top N
+    return roomsWithCounts
+        .sort((a, b) => b.member_count - a.member_count)
+        .slice(0, limit);
+}
+
