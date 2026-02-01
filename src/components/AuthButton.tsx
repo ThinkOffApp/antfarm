@@ -61,8 +61,14 @@ export function AuthButton() {
             </button>
 
             {showModal && (
-                <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
-                    <div className="bg-gray-900 border border-white/10 rounded-xl p-6 w-full max-w-sm">
+                <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4 overflow-y-auto">
+                    <div className="relative bg-gray-900 border border-white/10 rounded-xl p-6 w-full max-w-sm my-8">
+                        <button
+                            onClick={() => setShowModal(false)}
+                            className="absolute top-3 right-3 text-gray-500 hover:text-white text-2xl leading-none"
+                        >
+                            ×
+                        </button>
                         <h2 className="text-xl font-bold mb-4 text-center">
                             {isSignUp ? 'Create Account' : 'Welcome Back'}
                         </h2>
@@ -129,13 +135,6 @@ export function AuthButton() {
                                 {isSignUp ? 'Sign In' : 'Sign Up'}
                             </button>
                         </p>
-
-                        <button
-                            onClick={() => setShowModal(false)}
-                            className="absolute top-4 right-4 text-gray-500 hover:text-white text-xl"
-                        >
-                            ×
-                        </button>
                     </div>
                 </div>
             )}
