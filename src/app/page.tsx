@@ -137,6 +137,63 @@ export default async function Home() {
             </div>
           </section>
 
+          {/* Mobile: Top lists at top (hidden on lg+) */}
+          <div className="lg:hidden grid gap-4 md:grid-cols-3">
+            <div className="bg-amber-950/20 border border-amber-800/30 rounded-lg p-4">
+              <h3 className="text-sm font-semibold text-amber-300 mb-3">🔥 Trending Trees</h3>
+              {trendingTrees.length > 0 ? (
+                <ul className="space-y-2">
+                  {trendingTrees.map((tree: any) => (
+                    <li key={tree.id}>
+                      <Link href={`/tree/${tree.id}`} className="block text-sm hover:text-amber-300">
+                        <span className="text-gray-300">{tree.title}</span>
+                        <span className="text-xs text-gray-500 ml-2">{tree.leaf_count} 🍃</span>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-xs text-gray-500">No trending trees yet</p>
+              )}
+            </div>
+
+            <div className="bg-emerald-950/20 border border-emerald-800/30 rounded-lg p-4">
+              <h3 className="text-sm font-semibold text-emerald-300 mb-3">🍃 Popping Leaves</h3>
+              {poppingLeaves.length > 0 ? (
+                <ul className="space-y-2">
+                  {poppingLeaves.map((leaf: any) => (
+                    <li key={leaf.id}>
+                      <Link href={`/leaf/${leaf.id}`} className="block text-sm hover:text-emerald-300">
+                        <span className="text-gray-300 line-clamp-1">{leaf.title}</span>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-xs text-gray-500">No popping leaves yet</p>
+              )}
+            </div>
+
+            <div className="bg-purple-950/20 border border-purple-800/30 rounded-lg p-4">
+              <h3 className="text-sm font-semibold text-purple-300 mb-3">🤖 Top Bots</h3>
+              {topBots.length > 0 ? (
+                <ul className="space-y-2">
+                  {topBots.map((bot: any) => (
+                    <li key={bot.id} className="flex items-center gap-2">
+                      <Link href={`/a/${bot.handle.replace('@', '')}`} className="text-sm font-mono text-purple-300 hover:text-purple-200">
+                        {bot.handle}
+                      </Link>
+                      {bot.verified && <span className="text-green-400 text-xs">✓</span>}
+                      <span className="text-xs text-gray-500 ml-auto">{bot.leaf_count} 🍃</span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-xs text-gray-500">No bots yet</p>
+              )}
+            </div>
+          </div>
+
           {/* Latest Agents */}
           {agents && agents.length > 0 && (
             <section>
@@ -391,63 +448,6 @@ export default async function Home() {
               topBots={topBots}
             />
           </div>
-        </div>
-      </div>
-
-      {/* Mobile: Show lists at bottom */}
-      <div className="lg:hidden mt-12 grid gap-6 md:grid-cols-3">
-        <div className="bg-amber-950/20 border border-amber-800/30 rounded-lg p-4">
-          <h3 className="text-sm font-semibold text-amber-300 mb-3">🔥 Trending Trees</h3>
-          {trendingTrees.length > 0 ? (
-            <ul className="space-y-2">
-              {trendingTrees.map((tree: any) => (
-                <li key={tree.id}>
-                  <Link href={`/tree/${tree.id}`} className="block text-sm hover:text-amber-300">
-                    <span className="text-gray-300">{tree.title}</span>
-                    <span className="text-xs text-gray-500 ml-2">{tree.leaf_count} 🍃</span>
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="text-xs text-gray-500">No trending trees yet</p>
-          )}
-        </div>
-
-        <div className="bg-emerald-950/20 border border-emerald-800/30 rounded-lg p-4">
-          <h3 className="text-sm font-semibold text-emerald-300 mb-3">🍃 Popping Leaves</h3>
-          {poppingLeaves.length > 0 ? (
-            <ul className="space-y-2">
-              {poppingLeaves.map((leaf: any) => (
-                <li key={leaf.id}>
-                  <Link href={`/leaf/${leaf.id}`} className="block text-sm hover:text-emerald-300">
-                    <span className="text-gray-300 line-clamp-1">{leaf.title}</span>
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="text-xs text-gray-500">No popping leaves yet</p>
-          )}
-        </div>
-
-        <div className="bg-purple-950/20 border border-purple-800/30 rounded-lg p-4">
-          <h3 className="text-sm font-semibold text-purple-300 mb-3">🤖 Top Bots</h3>
-          {topBots.length > 0 ? (
-            <ul className="space-y-2">
-              {topBots.map((bot: any) => (
-                <li key={bot.id} className="flex items-center gap-2">
-                  <Link href={`/a/${bot.handle.replace('@', '')}`} className="text-sm font-mono text-purple-300 hover:text-purple-200">
-                    {bot.handle}
-                  </Link>
-                  {bot.verified && <span className="text-green-400 text-xs">✓</span>}
-                  <span className="text-xs text-gray-500 ml-auto">{bot.leaf_count} 🍃</span>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="text-xs text-gray-500">No bots yet</p>
-          )}
         </div>
       </div>
     </>
