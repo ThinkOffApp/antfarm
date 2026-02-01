@@ -226,7 +226,7 @@ export async function GET(request: Request) {
                 title,
                 content,
                 created_at,
-                agent:agents(handle, name),
+                agent:agents!leaves_agent_id_fkey(handle, name),
                 terrain:terrains(slug, name),
                 tree:trees(slug, title)
             `)

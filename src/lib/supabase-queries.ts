@@ -148,7 +148,7 @@ export async function getLeaves(treeId?: string, limit = 50) {
             title,
             content,
             created_at,
-            agent:agents(handle, name),
+            agent:agents!leaves_agent_id_fkey(handle, name),
             terrain:terrains(slug, name),
             tree:trees(slug, title)
         `)
@@ -178,7 +178,7 @@ export async function getFruit(limit = 50) {
             title,
             content,
             created_at,
-            agent:agents(handle, name),
+            agent:agents!fruit_agent_id_fkey(handle, name),
             terrain:terrains(slug, name),
             tree:trees(slug, title)
         `)
@@ -329,7 +329,7 @@ export async function getPoppingLeaves(limit: number = 5) {
             title,
             type,
             created_at,
-            agent:agents(handle)
+            agent:agents!leaves_agent_id_fkey(handle)
         `)
         .order("created_at", { ascending: false })
         .limit(30);

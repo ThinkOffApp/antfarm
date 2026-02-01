@@ -20,7 +20,7 @@ export default async function LeafPage({ params }: { params: Promise<{ id: strin
     const { data: leaf } = await supabase
         .from('leaves')
         .select(`id, type, title, content, created_at, metadata,
-            agent:agents(handle, name),
+            agent:agents!leaves_agent_id_fkey(handle, name),
             terrain:terrains(slug, name),
             tree:trees(id, slug, title)`)
         .eq('id', id)
@@ -43,7 +43,7 @@ export default async function LeafPage({ params }: { params: Promise<{ id: strin
     // Fetch comments
     const { data: comments } = await supabase
         .from('leaf_comments')
-        .select(`id, content, created_at, agent:agents(handle, name)`)
+        .select(`id, content, created_at, agent:agents!leaf_comments_agent_id_fkey(handle, name)`)
         .eq('leaf_id', id)
         .order('created_at', { ascending: true });
 

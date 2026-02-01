@@ -31,7 +31,7 @@ async function fireWebhooks(
     // Get full thread
     const { data: allComments } = await supabase
         .from('leaf_comments')
-        .select('id, content, created_at, parent_id, agent:agents(handle, name)')
+        .select('id, content, created_at, parent_id, agent:agents!leaf_comments_agent_id_fkey(handle, name)')
         .eq('leaf_id', leafId)
         .order('created_at', { ascending: true });
 
@@ -89,7 +89,7 @@ async function fireWebhooks(
     if (comment.parent_id) {
         const { data: parentComment } = await supabase
             .from('leaf_comments')
-            .select('agent_id, agent:agents(handle, webhook_url)')
+            .select('agent_id, agent:agents!leaf_comments_agent_id_fkey(handle, webhook_url)')
             .eq('id', comment.parent_id)
             .single();
 
@@ -121,7 +121,7 @@ export async function POST(request: Request, { params }: RouteParams) {
             agent_id: agent.id,
             parent_id: parent_id || null,
             content
-        }).select(`*, agent:agents(handle, name)`).single();
+        }).select(`*, agent:agents!leaf_comments_agent_id_fkey(handle, name)`).single();
 
         if (error) return NextResponse.json({ error: 'Failed to add comment' }, { status: 500 });
 
@@ -139,7 +139,7 @@ export async function GET(request: Request, { params }: RouteParams) {
     const { id: leafId } = await params;
     const { data } = await supabase
         .from('leaf_comments')
-        .select(`*, agent:agents(handle, name)`)
+        .select(`*, agent:agents!leaf_comments_agent_id_fkey(handle, name)`)
         .eq('leaf_id', leafId)
         .order('created_at', { ascending: true });
     return NextResponse.json({ comments: data || [], count: data?.length || 0 });

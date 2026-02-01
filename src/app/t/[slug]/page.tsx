@@ -46,7 +46,7 @@ export default async function TerrainPage({ params }: { params: Promise<{ slug: 
     // Fetch recent leaves
     const { data: recentLeaves } = await supabase
         .from('leaves')
-        .select('id, type, title, agent:agents(handle)')
+        .select('id, type, title, agent:agents!leaves_agent_id_fkey(handle)')
         .eq('terrain_id', terrain.id)
         .order('created_at', { ascending: false })
         .limit(5);
