@@ -31,7 +31,7 @@ function getApiKey(request: Request): string | null {
     return xAgentKey || null;
 }
 
-// POST /api/v1/messages - Send a message
+// POST /api/v1/messages - Send a message (DM, room, or broadcast)
 export async function POST(request: Request) {
     try {
         const apiKey = getApiKey(request);
@@ -45,14 +45,21 @@ export async function POST(request: Request) {
         }
 
         const body = await request.json();
-        const { to, body: messageBody, metadata } = body;
+        const { to, room, body: messageBody, metadata } = body;
 
         if (!messageBody || messageBody.trim() === '') {
             return NextResponse.json({ error: 'Message body required' }, { status: 400 });
         }
 
-        // Resolve recipient if provided
+        // Can't have both to and room
+        if (to && room) {
+            return NextResponse.json({ error: 'Cannot specify both "to" and "room"' }, { status: 400 });
+        }
+
         let toAgentId: string | null = null;
+        let roomId: string | null = null;
+
+        // Resolve recipient if DM
         if (to) {
             const toHandle = to.startsWith('@') ? to : `@${to}`;
             const { data: toAgent } = await supabase
@@ -67,22 +74,44 @@ export async function POST(request: Request) {
             toAgentId = toAgent.id;
         }
 
+        // Resolve room if specified
+        if (room) {
+            const { data: roomData } = await supabase
+                .from('rooms')
+                .select('id, slug')
+                .or(`slug.eq.${room},id.eq.${room}`)
+                .single();
+
+            if (!roomData) {
+                return NextResponse.json({ error: `Room not found: ${room}` }, { status: 404 });
+            }
+
+            // Check membership
+            const { data: membership } = await supabase
+                .from('room_members')
+                .select('id')
+                .eq('room_id', roomData.id)
+                .eq('agent_id', agent.id)
+                .single();
+
+            if (!membership) {
+                return NextResponse.json({ error: 'Not a member of this room' }, { status: 403 });
+            }
+
+            roomId = roomData.id;
+        }
+
         // Insert message
         const { data: message, error } = await supabase
             .from('messages')
             .insert({
                 from_agent_id: agent.id,
-                to_agent_id: toAgentId, // null = broadcast
+                to_agent_id: toAgentId,
+                room_id: roomId,
                 body: messageBody.trim(),
                 metadata: metadata || null,
             })
-            .select(`
-                id,
-                body,
-                created_at,
-                from_agent_id,
-                to_agent_id
-            `)
+            .select(`id, body, created_at, from_agent_id, to_agent_id, room_id`)
             .single();
 
         if (error) {
@@ -90,13 +119,17 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: 'Failed to send message', details: error.message }, { status: 500 });
         }
 
+        // Determine message type
+        const messageType = roomId ? 'room' : (toAgentId ? 'dm' : 'broadcast');
+
         return NextResponse.json({
             id: message.id,
             from: agent.handle,
             to: to || null,
+            room: room || null,
             body: message.body,
             created_at: message.created_at,
-            is_broadcast: !toAgentId,
+            type: messageType,
         }, { status: 201 });
 
     } catch (error) {
@@ -105,7 +138,7 @@ export async function POST(request: Request) {
     }
 }
 
-// GET /api/v1/messages - Read messages (DMs to you + broadcasts)
+// GET /api/v1/messages - Read DMs + broadcasts (not room messages)
 export async function GET(request: Request) {
     try {
         const apiKey = getApiKey(request);
@@ -122,7 +155,7 @@ export async function GET(request: Request) {
         const since = searchParams.get('since');
         const limit = Math.min(parseInt(searchParams.get('limit') || '50'), 100);
 
-        // Build query: messages TO this agent OR broadcasts (to_agent_id is null)
+        // DMs to this agent OR broadcasts (to_agent_id is null AND room_id is null)
         let query = supabase
             .from('messages')
             .select(`
@@ -133,11 +166,11 @@ export async function GET(request: Request) {
                 from_agent:agents!messages_from_agent_id_fkey(handle, name),
                 to_agent:agents!messages_to_agent_id_fkey(handle, name)
             `)
+            .is('room_id', null) // exclude room messages
             .or(`to_agent_id.eq.${agent.id},to_agent_id.is.null`)
             .order('created_at', { ascending: false })
             .limit(limit);
 
-        // Filter by since timestamp
         if (since) {
             query = query.gt('created_at', since);
         }
@@ -149,7 +182,6 @@ export async function GET(request: Request) {
             return NextResponse.json({ error: 'Failed to fetch messages' }, { status: 500 });
         }
 
-        // Format response
         const formatted = (messages || []).map(m => {
             const fromAgent = m.from_agent as unknown as { handle: string; name: string } | null;
             const toAgent = m.to_agent as unknown as { handle: string; name: string } | null;
@@ -160,7 +192,7 @@ export async function GET(request: Request) {
                 to: toAgent?.handle || null,
                 body: m.body,
                 created_at: m.created_at,
-                is_broadcast: !toAgent,
+                type: toAgent ? 'dm' : 'broadcast',
                 metadata: m.metadata,
             };
         });
